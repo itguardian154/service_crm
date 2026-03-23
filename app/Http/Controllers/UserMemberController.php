@@ -17,12 +17,21 @@ use App\Http\Controllers\ClassUploadImage;
 // Email
 use Mail;
 use App\Mail\EMemberMail;
+// Whatsapp
+use App\Services\WhatsAppService;
 // export
 use App\Exports\UserMember as export_userMember;
 use Maatwebsite\Excel\Facades\Excel;
 
 class UserMemberController extends Controller
 {
+    protected $whatsAppService;
+
+    public function __construct(WhatsAppService $whatsAppService)
+    {
+        $this->whatsAppService = $whatsAppService;
+    }
+
     public function register(Request $request){
         $status='';
         $message='';
@@ -324,87 +333,69 @@ class UserMemberController extends Controller
 
     public function sentWhatsapp($idMember)
     {
- 
-            // Cek Existing Data // Cek Existing Data
-            $c_Server = new Server();
-            $urlServer=$c_Server->serverLink();
+        $c_Server = new Server();
+        $urlServer = $c_Server->serverLink();
 
-            $user_ =DB::table('users_member')
-            ->select('users_member.image_eMember','users_client.name','users_client.telephone','users_member.expied_member',
-            DB::raw("CONCAT('".$urlServer."',users_member.image_eMember) as image_eMember"),'users_member.interval_month')
-            ->join('users_client','users_client.id_user_client','users_member.id_user_client')
-            ->where('users_member.id_member',$idMember);
-            
-            if($user_->exists())
-            {
-                $user = $user_->first();
-                $name=$user->name;
-                $telephone=$user->telephone;
-                $image=$user->image_eMember;
-                $intervalMonth=$user->interval_month;
+        $user_ = DB::table('users_member')
+            ->select(
+                'users_member.image_eMember',
+                'users_client.name',
+                'users_client.telephone',
+                'users_member.expied_member',
+                DB::raw("CONCAT('" . $urlServer . "', users_member.image_eMember) as image_eMember"),
+                'users_member.interval_month'
+            )
+            ->join('users_client', 'users_client.id_user_client', '=', 'users_member.id_user_client')
+            ->where('users_member.id_member', $idMember);
 
-                $whatsappMessage='';
-                $request['name'] = $name;
-                $request['interval_month'] = $intervalMonth;
-                $classCaptionWhatsapp = new ClassCaptionWhatsapp();
-                $whatsappMessage = $classCaptionWhatsapp->captionMemberTypeB($request);
+        if (!$user_->exists()) {
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'ID Member : ' . $idMember . ' not exists'
+            ]);
+        }
 
-                // sent Syarat dan Ketentuan 
-                // $this->sentWhatsappSyaratDanKetentuan($telephone);
-                $client = new \GuzzleHttp\Client();
+        $user = $user_->first();
 
-                // server
-                $url = "wamembership.salokapark.site/SendWhatsAppImage";
-                // $url = "103.164.114.22:8200/SendMessage";
-            
-                $myBody['apikey'] = "123456";
-                $myBody['phone']=[
-                   $telephone
-                ];
-                
-                $myBody['image']=$image;
-                $myBody['caption']=$whatsappMessage;
-                $request = $client->post($url,  [
-                    'json'=>$myBody
-                ]); 
-     
-                // $response = $request->send();
-              
-                $result=response()->json([
-                    'status' => 'success',
-                    'message' => 'Whastapp is sent successfully.',
-                ]);
+        $requestCaption = [];
+        $requestCaption['name'] = $user->name;
+        $requestCaption['interval_month'] = $user->interval_month;
 
-            }
-            else
-            {
-                $result=response()->json([
-                    'status' => 'failed',
-                    'message' => 'ID Member : '.$idMember.' not exists'
-                ]);
-            }
-            return $result;
+        $classCaptionWhatsapp = new ClassCaptionWhatsapp();
+        $whatsappMessage = $classCaptionWhatsapp->captionMemberTypeB($requestCaption);
+
+        $result = $this->whatsAppService->sendImage(
+            $user->telephone,
+            $whatsappMessage,
+            $user->image_eMember,
+            $user->name,
+            'Membership Notification'
+        );
+
+        return response()->json([
+            'status'  => $result['success'] ? 'success' : 'failed',
+            'message' => $result['message'],
+            'data'    => $result['data'] ?? null,
+            'error'   => $result['error'] ?? null,
+        ]);
     }
 
     public function sentWhatsappSyaratDanKetentuan($telephone)
-    {            
-                $client = new \GuzzleHttp\Client();
-                // server
-                $url = "wamembership.salokapark.site/SendWhatsAppImage";
-             
-                $myBody['apikey'] = "123456";
-                $myBody['phone']=[
-                   $telephone
-                ];
-                $myBody['image']="https://servicecrm.salokapark.app/img/membership-template-tc.png";
-                $myBody['caption']="";
-                $request = $client->post($url,  ['form_params'=>$myBody]);
-            
-                $result=response()->json([
-                    'status' => 'success',
-                    'message' => 'Whastapp is sent successfully.',
-                ]);
-            return $result;
+    {
+        $result = $this->whatsAppService->sendImage(
+            $telephone,
+            '',
+            config('whatsapp.assets.syarat_ketentuan'),
+            'Member',
+            'Syarat & Ketentuan Membership'
+        );
+
+        return response()->json([
+            'status'  => $result['success'] ? 'success' : 'failed',
+            'message' => $result['message'],
+            'data'    => $result['data'] ?? null,
+            'error'   => $result['error'] ?? null,
+        ]);
     }
 
     ///////////////////////////////////////////////////////////////
