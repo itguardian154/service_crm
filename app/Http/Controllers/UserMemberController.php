@@ -202,7 +202,7 @@ class UserMemberController extends Controller
                         $this->sentWhatsapp($idMember);
                         
                         // // email
-                        // $this->sentEmail($idMember);
+                        $this->sentEmail($idMember);
                     }
                    
                     $result=response()->json([
