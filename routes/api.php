@@ -11,7 +11,7 @@ use App\Http\Controllers\AttendanceRecord;
 use App\Http\Controllers\UserMemberSalesController;
 
 use App\Http\Controllers\Location;
-
+use App\Http\Controllers\ImageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +23,8 @@ use App\Http\Controllers\Location;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+Route::post('/image/rotate', [ImageController::class, 'rotate']);
 
 // USER ADMIN API
 // Controller UserAdminController

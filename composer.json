@@ -9,7 +9,7 @@
         "fruitcake/laravel-cors": "^2.0.5",
         "guzzlehttp/guzzle": "^7.7",
         "haruncpi/laravel-id-generator": "^1.1",
-        "intervention/image": "^2.7",
+        "intervention/image": "*",
         "laravel/framework": "^9.0",
         "laravel/sanctum": "^2.14",
         "laravel/tinker": "^2.7",
