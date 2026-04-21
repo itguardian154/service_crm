@@ -82,6 +82,10 @@ class UserMemberController extends Controller
                         $expiedDate = $this->addMonth($startMember,$expiedMember);
                         $this->register_member_sales($typeMember,$idUserClient,$expiedDate,$totPayment,$expiedMember,$startMember);
                     }
+                    elseif($typeMember=='K')
+                    {
+                        $this->register_member_marketing($typeMember,$idUserClient,$expiedMember,$totPayment,12,$startMember);
+                    }
 
                     // punya Marketing
                     else
@@ -133,8 +137,8 @@ class UserMemberController extends Controller
             'is_status' => '1',
         ]);
         
-        // email
-        $this->sentEmail($idMember);
+        // // email
+        // $this->sentEmail($idMember);
 
         // whatsapp
         $this->sentWhatsapp($idMember);
