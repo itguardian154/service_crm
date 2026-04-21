@@ -82,6 +82,11 @@ class ClassUploadImage extends Controller
                 // Type Member Membership Imlek
                 return 'img/template-imlek.png';
             }
+            if($idMember=='M')
+            {
+                // Type Member Spesial Hari Pendidikan Nasional
+                return 'img/template-spesial-hari-pendidikan-nasional.png';
+            }
             if($idMember=='AA')
             {
                 // Type Member Membership Spesial Kampung Natal
@@ -174,6 +179,10 @@ class ClassUploadImage extends Controller
             if($typeMember=='L')
             {
                 $path = $this->memberL($idUserClient,$typeMember,$idMember,$expiredDate);
+            }
+            if($typeMember=='M')
+            {
+                $path = $this->memberM($idUserClient,$typeMember,$idMember,$expiredDate);
             }
             // member Panarama
             if($typeMember=='AA')
@@ -909,7 +918,7 @@ class ClassUploadImage extends Controller
 
             $image2->fit(840, 1090);
             $image1->insert($image2, 'top-left', 130, 430);
-            $image1->insert($image3, 'bottom-left', 1130, 455); //kanan kiri // naik turun
+            $image1->insert($image3, 'bottom-left', 1145, 470); //kanan kiri // naik turun
 
             $id_member = $idMember;
             $name = $userProfile->name;
@@ -987,7 +996,7 @@ class ClassUploadImage extends Controller
 
             $image2->fit(840, 1090);
             $image1->insert($image2, 'top-left', 130, 430);
-            $image1->insert($image3, 'bottom-left', 1135, 450);
+            $image1->insert($image3, 'bottom-left', 1135, 490);
 
             $id_member = $idMember;
             $name = $userProfile->name;
@@ -1021,6 +1030,84 @@ class ClassUploadImage extends Controller
                 $font->align('center');
                 $font->valign('top');
             });
+
+            $image1->text($expired_date, 500, 1720, function ($font) {
+                $font->file(public_path('alright-sans-black.ttf'));
+                $font->size(125);
+                $font->color('#ffffff');
+                $font->align('center');
+                $font->valign('top');
+            });
+
+            $fileName = $idUserClient.'-'.$idMember.'.jpg';; 
+            // Storage::disk('uploads_eMember')->put($fileName, $image1->encode('jpg'));
+
+            $image = Image::make($image1)->resize(800, null, function ($constraint) {
+                $constraint->aspectRatio();
+            });
+            $path = 'image_eMember' . '/' . $fileName;
+            $image->save(public_path('storage' . DIRECTORY_SEPARATOR . $path));
+            return $path;
+        }
+
+        private function memberM($idUserClient,$typeMember,$idMember,$expiredDate)
+        {
+            // call template image
+            $urlTemplate = $this->tempateCardMember($typeMember);
+            $image1 = Image::make(public_path($urlTemplate));
+
+            // get profile user
+            $userProfile = DB::table('users_client')
+            ->select('id_user_client','name','date_of_birth','img_profile')
+            ->where('id_user_client',$idUserClient)
+            ->first();
+            $urlImageProfile = $userProfile->img_profile;
+
+            // call image from local picture
+            $image2 = Image::make(public_path('storage/'.$urlImageProfile));
+
+            // create qr code imgage
+            $qrcodePath = public_path('qrcode.png');
+            QrCode::size(380)->format('png')->generate($idMember, $qrcodePath);
+
+            $image3 = Image::make($qrcodePath);
+
+            $image2->fit(840, 1090);
+            $image1->insert($image2, 'top-left', 130, 430);
+            $image1->insert($image3, 'bottom-left', 1135, 490);
+
+            $id_member = $idMember;
+            $name = $userProfile->name;
+            $birthday = $userProfile->date_of_birth;
+
+            $date = Carbon::parse($expiredDate);
+            $expired_date = $date->format('j M Y');
+
+            // id Member
+            $image1->text($id_member, 1090, 900, function ($font) {
+                $font->file(public_path('alright-sans-bold.ttf'));
+                $font->size(125);
+                $font->color('#ffffff');
+                $font->align('left');
+                $font->valign('top');
+            });
+
+            $image1->text($name, 1090, 550, function ($font) {
+                $font->file(public_path('alright-sans-black.ttf'));
+                $font->size(125);
+                $font->color('#ffffff');
+                $font->align('left');
+                $font->valign('top');
+            });
+            
+            // $birthday = date('d-m-Y', strtotime($birthday));
+            // $image1->text($birthday, 1360, 700, function ($font) {
+            //     $font->file(public_path('alright-sans-black.ttf'));
+            //     $font->size(100);
+            //     $font->color('#ffffff');
+            //     $font->align('center');
+            //     $font->valign('top');
+            // });
 
             $image1->text($expired_date, 500, 1720, function ($font) {
                 $font->file(public_path('alright-sans-black.ttf'));
