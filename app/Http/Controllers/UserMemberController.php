@@ -23,6 +23,8 @@ use App\Services\WhatsAppService;
 use App\Exports\UserMember as export_userMember;
 use Maatwebsite\Excel\Facades\Excel;
 
+use Illuminate\Support\Facades\Log;
+
 class UserMemberController extends Controller
 {
     protected $whatsAppService;
@@ -82,17 +84,23 @@ class UserMemberController extends Controller
                         $expiedDate = $this->addMonth($startMember,$expiedMember);
                         $this->register_member_sales($typeMember,$idUserClient,$expiedDate,$totPayment,$expiedMember,$startMember);
                     }
-                    elseif($typeMember=='K')
-                    {
-                        $this->register_member_marketing($typeMember,$idUserClient,$expiedMember,$totPayment,12,$startMember);
-                    }
-
+                
                     // punya Marketing
                     else
-                    {
-                        // calculate expired date
-                        $expiedDate = $this->addMonth($startMember,$expiedMember);
-                        $this->register_member_marketing($typeMember,$idUserClient,$expiedDate,$totPayment,$expiedMember,$startMember);
+                    { 
+                        if($typeMember=='M')
+                        {
+                            $start = Carbon::parse($startMember);
+                            $expired = Carbon::parse($expiedMember);
+                            $intervalMonth = $start->diffInMonths($expired);
+                            $this->register_member_marketing($typeMember,$idUserClient,$expiedMember,$totPayment,$intervalMonth,$startMember);
+                        }
+                        else
+                        {
+                            // calculate expired date
+                            $expiedDate = $this->addMonth($startMember,$expiedMember);
+                            $this->register_member_marketing($typeMember,$idUserClient,$expiedDate,$totPayment,$expiedMember,$startMember);
+                        }
                     }
     
                     $result=response()->json([
@@ -206,7 +214,7 @@ class UserMemberController extends Controller
                         $this->sentWhatsapp($idMember);
                         
                         // // email
-                        $this->sentEmail($idMember);
+                        // $this->sentEmail($idMember);
                     }
                    
                     $result=response()->json([
@@ -337,6 +345,8 @@ class UserMemberController extends Controller
 
     public function sentWhatsapp($idMember)
     {
+        Log::info('Sending WhatsApp notification for Member ID: ' . $idMember);
+
         $c_Server = new Server();
         $urlServer = $c_Server->serverLink();
 
@@ -375,6 +385,8 @@ class UserMemberController extends Controller
             $user->name,
             'Membership Notification'
         );
+
+        Log::info('WhatsApp notification result for Member ID ' . $idMember . ': ' . json_encode($result)); 
 
         return response()->json([
             'status'  => $result['success'] ? 'success' : 'failed',

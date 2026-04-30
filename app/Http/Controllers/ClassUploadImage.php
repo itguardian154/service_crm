@@ -1073,8 +1073,8 @@ class ClassUploadImage extends Controller
             $image3 = Image::make($qrcodePath);
 
             $image2->fit(840, 1090);
-            $image1->insert($image2, 'top-left', 130, 430);
-            $image1->insert($image3, 'bottom-left', 1135, 490);
+            $image1->insert($image2, 'top-left', 150, 420);
+            $image1->insert($image3, 'bottom-left', 1125, 450);
 
             $id_member = $idMember;
             $name = $userProfile->name;
@@ -1092,7 +1092,8 @@ class ClassUploadImage extends Controller
                 $font->valign('top');
             });
 
-            $image1->text($name, 1090, 550, function ($font) {
+            // $image1->text($name, 1090, 550, function ($font) {
+            $image1->text($name, 1090, 700, function ($font) {
                 $font->file(public_path('alright-sans-black.ttf'));
                 $font->size(125);
                 $font->color('#ffffff');
@@ -1109,7 +1110,7 @@ class ClassUploadImage extends Controller
             //     $font->valign('top');
             // });
 
-            $image1->text($expired_date, 500, 1720, function ($font) {
+            $image1->text($expired_date, 520, 1720, function ($font) {
                 $font->file(public_path('alright-sans-black.ttf'));
                 $font->size(125);
                 $font->color('#ffffff');

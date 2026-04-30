@@ -98,7 +98,7 @@ class WhatsAppService
             'message'          => $message,
             'assets'           => null,
             'asset_name'       => null,
-            'delay'            => $delay ?? $this->defaultDelay,
+            'delay'            => 1,
         ];
 
         return $this->send($payload);
@@ -123,7 +123,7 @@ class WhatsAppService
             'message'          => $message,
             'assets'           => $imageUrl,
             'asset_name'       => !empty($imageUrl) ? basename(parse_url($imageUrl, PHP_URL_PATH)) : null,
-            'delay'            => $delay ?? $this->defaultDelay,
+            'delay'            => 1,
         ];
 
         return $this->send($payload);
