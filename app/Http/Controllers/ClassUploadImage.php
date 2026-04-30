@@ -84,7 +84,7 @@ class ClassUploadImage extends Controller
             }
             if($idMember=='M')
             {
-                // Type Member Spesial Hari Pendidikan Nasional
+                // Type Member Spesial Hari Pendidikan Nasional, event baru untuk member yang berlaku di bulan mei
                 return 'img/template-spesial-hari-pendidikan-nasional.png';
             }
             if($idMember=='AA')
