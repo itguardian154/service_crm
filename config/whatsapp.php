@@ -10,7 +10,7 @@ return [
         'master_module_id' => 6,
         'master_menu_id'   => 10,
         'title'            => 'Membership Notification',
-        'delay'            => 0,
+        'delay'            => 1,
     ],
     'assets' => [
         'syarat_ketentuan' => 'https://servicecrm.salokapark.app/img/membership-template-tc.png',
