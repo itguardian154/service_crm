@@ -88,22 +88,16 @@ class UserMemberController extends Controller
                     // punya Marketing
                     else
                     { 
-                        if($typeMember=='M')
-                        {
-                            $start = Carbon::parse($startMember);
-                            $expired = Carbon::parse($expiedMember);
-                            $intervalMonth = $start->diffInMonths($expired);
-                            $this->register_member_marketing($typeMember,$idUserClient,$expiedMember,$totPayment,$intervalMonth,$startMember);
+                        if ($typeMember == 'M') {
 
                             $start = Carbon::parse($startMember);
+
                             // 🔥 HANDLE 2 TIPE INPUT
                             if (is_numeric($expiedMember)) {
                                 // 👉 interval bulan
                                 $intervalMonth = (int) $expiedMember;
 
-                                $expiedDate = $start->copy()
-                                    ->addMonths($intervalMonth)
-                                    ->format('Y-m-d');
+                                $expiedDate = '2027-05-01'; // placeholder, will be calculated below
 
                             } else {
                                 // 👉 tanggal langsung
