@@ -94,6 +94,39 @@ class UserMemberController extends Controller
                             $expired = Carbon::parse($expiedMember);
                             $intervalMonth = $start->diffInMonths($expired);
                             $this->register_member_marketing($typeMember,$idUserClient,$expiedMember,$totPayment,$intervalMonth,$startMember);
+
+                            $start = Carbon::parse($startMember);
+                            // 🔥 HANDLE 2 TIPE INPUT
+                            if (is_numeric($expiedMember)) {
+                                // 👉 interval bulan
+                                $intervalMonth = (int) $expiedMember;
+
+                                $expiedDate = $start->copy()
+                                    ->addMonths($intervalMonth)
+                                    ->format('Y-m-d');
+
+                            } else {
+                                // 👉 tanggal langsung
+                                try {
+                                    $expiedDate = Carbon::parse($expiedMember)->format('Y-m-d');
+                                } catch (\Exception $e) {
+                                    return response()->json([
+                                        'status' => 'failed',
+                                        'message' => 'Format expied_member tidak valid'
+                                    ], 422);
+                                }
+
+                                $intervalMonth = $start->diffInMonths($expiedDate);
+                            }
+
+                            $this->register_member_marketing(
+                                $typeMember,
+                                $idUserClient,
+                                $expiedDate,
+                                $totPayment,
+                                $intervalMonth,
+                                $startMember
+                            );
                         }
                         else
                         {
