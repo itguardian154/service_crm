@@ -55,6 +55,9 @@ Route::controller(UserClientController::class)->group(function () {
 
     // export
     Route::get('export_user_client', 'exportUserClient'); // ok
+
+    //Rotate Image
+    Route::get('/rotate-image-client/{id}/{direction}','rotateClientImage'); // ok
 });
 
 // Controller UserClientController

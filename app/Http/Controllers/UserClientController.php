@@ -15,6 +15,10 @@ use App\Http\Controllers\ClassUploadImage;
 use App\Exports\UserClient as export_userClient;
 use Maatwebsite\Excel\Facades\Excel;
 
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\ImageManagerStatic as Image;
+
 class UserClientController extends Controller
 {
 
@@ -175,24 +179,28 @@ class UserClientController extends Controller
     public function getProfileUserClinet($email)
     {
         $c_Server = new Server();
-        $urlServer=$c_Server->serverLink();
-        
+        $urlServer = $c_Server->serverLink();
+        $version = time();
+
         $user = DB::table('users_client')
-        ->select('id_user_client',
-        'name',
-        'instansi',
-        'email',
-        'telephone',
-        'date_of_birth',
-        'address',
-        'city',
-        'province',
-        DB::raw("CONCAT('".$urlServer."',img_profile) as img_profile"),
-        DB::raw("CONCAT('".$urlServer."',img_ktp) as img_ktp"),
-        'type_register',
-        'is_status')
-        ->where('email',$email)
-        ->first();
+            ->select(
+                'id_user_client',
+                'name',
+                'instansi',
+                'email',
+                'telephone',
+                'date_of_birth',
+                'address',
+                'city',
+                'province',
+                DB::raw("CONCAT('{$urlServer}', img_profile, '?v={$version}') as img_profile"),
+                DB::raw("CONCAT('{$urlServer}', img_ktp, '?v={$version}') as img_ktp"),
+                'type_register',
+                'is_status'
+            )
+            ->where('email', $email)
+            ->first();
+
         return $user;
     }
 
@@ -245,69 +253,94 @@ class UserClientController extends Controller
     public function getAllData(Request $request)
     {
         $typeRegister = $request->type_register;
-        try {
-            // Cek Existing Data // Cek Existing Data
-            $c_Server = new Server();
-            $urlServer=$c_Server->serverLink();
 
-            $user_ =DB::table('users_client')
-            ->select('id_user_client','name','instansi','email','telephone','date_of_birth','address','city','province','type_register',
-            DB::raw("CONCAT('".$urlServer."',img_profile) as img_profile"),
-            DB::raw("CONCAT('".$urlServer."',img_ktp) as img_ktp"),'is_status')
-            ->where('type_register','like', "%{$typeRegister}%");
-            if($user_->exists())
-            {
-                $user = $user_->get();
-                    return response()->json([
+        try {
+            $c_Server = new Server();
+            $urlServer = $c_Server->serverLink();
+            $version = time();
+
+            $user_ = DB::table('users_client')
+                ->select(
+                    'id',
+                    'id_user_client',
+                    'name',
+                    'instansi',
+                    'email',
+                    'telephone',
+                    'date_of_birth',
+                    'address',
+                    'city',
+                    'province',
+                    'type_register',
+                    DB::raw("CONCAT('{$urlServer}', img_profile, '?v={$version}') as img_profile"),
+                    DB::raw("CONCAT('{$urlServer}', img_ktp, '?v={$version}') as img_ktp"),
+                    'is_status'
+                )
+                ->where('type_register', 'like', "%{$typeRegister}%");
+
+            if ($user_->exists()) {
+                return response()->json([
                     'status' => 'success',
-                    'user' => $user
+                    'user'   => $user_->get()
                 ]);
             }
-            else
-            {
-                $result=response()->json([
-                    'status' => 'failed',
-                    'message' => 'Data not exists'
-                ]);
-            }
-            return $result;
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Data not exists'
+            ]);
+
         } catch (\Exception $ex) {
-            return $ex;
+            return response()->json([
+                'status' => 'failed',
+                'message' => $ex->getMessage()
+            ], 500);
         }
     }
 
     public function getProfile(Request $request)
     {
         try {
-            // Cek Existing Data // Cek Existing Data
             $c_Server = new Server();
-            $urlServer=$c_Server->serverLink();
-            
-            $user_ =DB::table('users_client')
-            ->select('id_user_client','name','instansi','email','telephone','date_of_birth','address','city','province','type_register',
-            DB::raw("CONCAT('".$urlServer."',img_profile) as img_profile"),
-            DB::raw("CONCAT('".$urlServer."',img_ktp) as img_ktp"),'is_status')
-            ->where('id_user_client',$request->id_user_client);
-         
-            if($user_->exists())
-            {
-                $user = $user_->first();
-                    return response()->json([
-                    'status' => 'success',
-                    'user' => $user
+            $urlServer = $c_Server->serverLink();
+            $version = time();
 
+            $user_ = DB::table('users_client')
+                ->select(
+                    'id',
+                    'id_user_client',
+                    'name',
+                    'instansi',
+                    'email',
+                    'telephone',
+                    'date_of_birth',
+                    'address',
+                    'city',
+                    'province',
+                    'type_register',
+                    DB::raw("CONCAT('{$urlServer}', img_profile, '?v={$version}') as img_profile"),
+                    DB::raw("CONCAT('{$urlServer}', img_ktp, '?v={$version}') as img_ktp"),
+                    'is_status'
+                )
+                ->where('id_user_client', $request->id_user_client);
+
+            if ($user_->exists()) {
+                return response()->json([
+                    'status' => 'success',
+                    'user'   => $user_->first()
                 ]);
             }
-            else
-            {
-                $result=response()->json([
-                    'status' => 'failed',
-                    'message' => 'User ID : '.$request->id_user_client.' not exists'
-                ]);
-            }
-            return $result;
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'User ID : ' . $request->id_user_client . ' not exists'
+            ]);
+
         } catch (\Exception $ex) {
-            return $ex;
+            return response()->json([
+                'status'  => 'failed',
+                'message' => $ex->getMessage()
+            ], 500);
         }
     }
 
@@ -669,5 +702,75 @@ class UserClientController extends Controller
         }
 
         return $telephone;
+    }
+
+
+    public function rotateClientImage($id, $direction): JsonResponse
+    {
+        try {
+            $user = UserClient::find($id);
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Peserta tidak ditemukan.',
+                ], 400);
+            }
+
+            $imagePath = $user->img_profile; // contoh: image_profile/PROFILE_CUS-000001.jpg
+
+            if (empty($imagePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Foto peserta belum tersedia.',
+                ], 400);
+            }
+
+            $direction = strtolower($direction);
+
+            if (!in_array($direction, ['left', 'right'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Direction harus left atau right.',
+                ], 422);
+            }
+
+            $fullPath = public_path('storage/' . $imagePath);
+
+            if (!file_exists($fullPath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File foto tidak ditemukan.',
+                    'data' => [
+                        'path' => $fullPath,
+                    ],
+                ], 400);
+            }
+
+            $image = Image::make($fullPath);
+
+            $image->rotate($direction === 'right' ? -90 : 90);
+
+            $image->save($fullPath, 90);
+
+            clearstatcache(true, $fullPath);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Foto peserta berhasil diputar.',
+                'data' => [
+                    'image' => asset('storage/' . $imagePath) . '?v=' . time(),
+                    'direction' => $direction,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memutar foto.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }
