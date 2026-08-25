@@ -73,6 +73,12 @@ Route::controller(UserMemberController::class)->group(function () {
 
     // export
     Route::get('export_member', 'exportMember'); 
+
+     // Validate Member
+    Route::post('validate_member', 'validateMember');
+
+    // Extend Member
+    Route::post('extend_member', 'extendMember');
 });
 
 // Controller UserClientController

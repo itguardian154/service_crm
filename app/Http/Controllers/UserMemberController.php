@@ -23,6 +23,12 @@ use App\Services\WhatsAppService;
 use App\Exports\UserMember as export_userMember;
 use Maatwebsite\Excel\Facades\Excel;
 
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\ImageManagerStatic as Image;
+
+use App\Models\ExtendUserMember;
+
 class UserMemberController extends Controller
 {
     protected $whatsAppService;
@@ -605,4 +611,177 @@ class UserMemberController extends Controller
     //         return $ex;
     //     }
     // }
+
+
+
+
+    public function rotateParticipantImage(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'id_user_client' => ['required', 'integer'],
+                'direction'      => ['required', 'in:left,right'],
+            ]);
+
+            $user = UserClient::find($request->id_user_client);
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Peserta tidak ditemukan.',
+                ], 404);
+            }
+
+            $imagePath = $user->photo; 
+            $direction = $request->direction;
+
+            if (!$imagePath || !Storage::disk('public')->exists($imagePath)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Foto peserta tidak ditemukan.',
+                ], 404);
+            }
+
+            $content = Storage::disk('public')->get($imagePath);
+
+            $image = Image::make($content);
+
+            $image->rotate($direction === 'right' ? -90 : 90);
+
+            Storage::disk('public')->put(
+                $imagePath,
+                (string) $image->encode(null, 80)
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Foto peserta berhasil diputar.',
+                'data' => [
+                    'image' => $imagePath,
+                    'direction' => $direction,
+                ],
+            ]);
+
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memutar foto.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function validateMember(Request $request)
+    {
+        $request->validate([
+            'member_id' => ['required', 'integer'],
+            'email'     => ['required', 'email'],
+            'phone'     => ['required', 'string'],
+        ]);
+
+        try {
+            $member = DB::table('users_member')
+                ->join(
+                    'users_client',
+                    'users_client.id_user_client',
+                    '=',
+                    'users_member.id_user_client'
+                )
+                ->where('users_member.id_member', $request->member_id)
+                ->where('users_client.email', $request->email)
+                ->where('users_client.telephone', $request->phone)
+                ->select(
+                    'users_member.id_member',
+                    'users_member.id_user_client',
+                    'users_client.name',
+                    'users_client.email',
+                    'users_client.telephone'
+                )
+                ->first();
+
+            if (!$member) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'valid'   => false,
+                    'message' => 'Data member tidak sesuai.',
+                ], 404);
+            }
+
+            return response()->json([
+                'status'  => 'success',
+                'valid'   => true,
+                'message' => 'Member valid.',
+                'data'    => $member,
+            ]);
+
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status'  => 'failed',
+                'valid'   => false,
+                'message' => 'Gagal melakukan validasi member.',
+            ], 500);
+        }
+    }
+
+    public function extendMember(
+        UserMember $userMember,
+        int $durationMonth,
+        int $amount
+    ): ExtendUserMember {
+        return DB::transaction(function () use (
+            $userMember,
+            $durationMonth,
+            $amount
+        ) {
+            $currentExpiredDate = Carbon::parse(
+                $userMember->expied_member
+            );
+
+            $today = Carbon::today();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Jika membership masih aktif
+            | extend dimulai dari tanggal expired existing
+            |--------------------------------------------------------------------------
+            */
+            $extendedFrom = $currentExpiredDate->greaterThanOrEqualTo($today)
+                ? $currentExpiredDate
+                : $today;
+
+            $extendedUntil = $extendedFrom
+                ->copy()
+                ->addMonths($durationMonth);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Extend History
+            |--------------------------------------------------------------------------
+            */
+            $extend = ExtendUserMember::create([
+                'user_member_id' => $userMember->id,
+                'duration_month' => $durationMonth,
+                'amount' => $amount,
+                'extended_from' => $extendedFrom,
+                'extended_until' => $extendedUntil,
+                'status' => 'success',
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update Current Membership
+            |--------------------------------------------------------------------------
+            */
+            $userMember->update([
+                'expied_member' => $extendedUntil,
+                'interval_month' => $durationMonth,
+                'tot_payment' => $amount,
+                'is_status' => true,
+            ]);
+
+            return $extend->load('userMember');
+        });
+    }
 }
