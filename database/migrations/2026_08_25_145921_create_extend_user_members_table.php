@@ -13,30 +13,30 @@ return new class extends Migration
      */
     public function up()
     {
-       Schema::create('extend_user_members', function (Blueprint $table) {
-            $table->id();
+        Schema::create('extend_user_members', function (Blueprint $table) {
+                $table->id();
 
-            $table->unsignedBigInteger('user_member_id');
+                $table->unsignedInteger('user_member_id');
 
-            $table->unsignedInteger('duration_month');
+                $table->unsignedInteger('duration_month');
 
-            $table->unsignedBigInteger('amount');
+                $table->unsignedBigInteger('amount');
 
-            $table->date('extended_from');
+                $table->date('extended_from');
 
-            $table->date('extended_until');
+                $table->date('extended_until');
 
-            $table->string('status')->default('success');
+                $table->string('status')->default('success');
 
-            $table->timestamps();
+                $table->timestamps();
 
-            $table->foreign('user_member_id')
-                ->references('id')
-                ->on('users_member')
-                ->cascadeOnDelete();
+                $table->foreign('user_member_id')
+                    ->references('id')
+                    ->on('users_member')
+                    ->cascadeOnDelete();
 
-            $table->index('user_member_id');
-        });
+                $table->index('user_member_id');
+            });
     }
 
     /**
