@@ -25,6 +25,8 @@ use Maatwebsite\Excel\Facades\Excel;
 
 use Illuminate\Support\Facades\Log;
 
+use App\Models\ExtendUserMember;
+
 class UserMemberController extends Controller
 {
     protected $whatsAppService;
@@ -582,70 +584,116 @@ class UserMemberController extends Controller
         }
     }
 
-    // public function editMember()
-    // {
-    //     $idUserClient = $request->id_user_client;
-    //     $typeMember = $request->type_member;
-    //     $totPayment = $request->tot_payment;
-    //     $startMember = $request->start_member;
-    //     $expiedMember = $request->expied_member;
-        
-    //     try {
-    //             $userMember_ = DB::table('users_member')
-    //             ->select('id')->where('id_user_client',$idUserClient)->where('type_member',$typeMember);
+     public function validateMember(Request $request)
+    {
+        $request->validate([
+            'member_id' => ['required', 'integer'],
+            'email'     => ['required', 'email'],
+            'phone'     => ['required', 'string'],
+        ]);
 
-    //             if($userMember_->exists())
-    //             {
-    //                 $result=response()->json([
-    //                     'status' => 'failed',
-    //                     'message' => 'ID User Client : '.$idUserClient.' exists type Member '. $typeMember
-    //                 ]);
-    //             }
-    //             else
-    //             {
-    //                 if($typeMember=='A')
-    //                 {
-    //                     $expiedDate ='2023-11-30';
-    //                 }
-    //                 elseif($typeMember=='B')
-    //                 {
-    //                     $expiedDate ='2023-12-31';
-    //                 }
-    //                 else
-    //                 {
-    //                     // calculate expired date
-    //                     $expiedDate = $this->addMonth($startMember,$expiedMember);
-    //                 }
-    //                 $c_uploadImage = new ClassUploadImage();
-    //                 $urlPathImgProfile = $c_uploadImage->mergeImages($idUserClient,$idMember,$expiedDate);
-                    
-    //                 // update table
-    //                 DB::table('users_member')
-    //                 ->where('id_user_client',$idUserClient)->where('type_member',$typeMember)
-    //                 ->update([
-    //                     'type_member' => $typeMember,
-    //                     'tot_payment' => $totPayment,
-    //                     'interval_month'=> $expiedMember,
-    //                     'start_member' => $startMember,
-    //                     'expied_member' => $expiedDate,
-    //                     'image_eMember' => $urlPathImgProfile
-    //                 ]);
+        try {
+            $member = DB::table('users_member')
+                ->join(
+                    'users_client',
+                    'users_client.id_user_client',
+                    '=',
+                    'users_member.id_user_client'
+                )
+                ->where('users_member.id_member', $request->member_id)
+                ->where('users_client.email', $request->email)
+                ->where('users_client.telephone', $request->phone)
+                ->select(
+                    'users_member.id_member',
+                    'users_member.id_user_client',
+                    'users_client.name',
+                    'users_client.email',
+                    'users_client.telephone'
+                )
+                ->first();
 
-    //                 // whatsapp
-    //                 $this->sentWhatsapp($idMember);
-                    
-    //                 // email
-    //                 $this->sentEmail($idMember);
-    
-    //                 $result=response()->json([
-    //                     'status' => 'success',
-    //                     'message' => 'Edited Member successfully'
-    //                 ]);
-    //             }
+            if (!$member) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'valid'   => false,
+                    'message' => 'Data member tidak sesuai.',
+                ], 404);
+            }
 
-    //         return $result;
-    //     } catch (\Exception $ex) {
-    //         return $ex;
-    //     }
-    // }
+            return response()->json([
+                'status'  => 'success',
+                'valid'   => true,
+                'message' => 'Member valid.',
+                'data'    => $member,
+            ]);
+
+        } catch (\Throwable $th) {
+            return response()->json([
+                'status'  => 'failed',
+                'valid'   => false,
+                'message' => 'Gagal melakukan validasi member.',
+            ], 500);
+        }
+    }
+
+    public function extendMember(
+        UserMember $userMember,
+        int $durationMonth,
+        int $amount
+    ): ExtendUserMember {
+        return DB::transaction(function () use (
+            $userMember,
+            $durationMonth,
+            $amount
+        ) {
+            $currentExpiredDate = Carbon::parse(
+                $userMember->expied_member
+            );
+
+            $today = Carbon::today();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Jika membership masih aktif
+            | extend dimulai dari tanggal expired existing
+            |--------------------------------------------------------------------------
+            */
+            $extendedFrom = $currentExpiredDate->greaterThanOrEqualTo($today)
+                ? $currentExpiredDate
+                : $today;
+
+            $extendedUntil = $extendedFrom
+                ->copy()
+                ->addMonths($durationMonth);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create Extend History
+            |--------------------------------------------------------------------------
+            */
+            $extend = ExtendUserMember::create([
+                'user_member_id' => $userMember->id,
+                'duration_month' => $durationMonth,
+                'amount' => $amount,
+                'extended_from' => $extendedFrom,
+                'extended_until' => $extendedUntil,
+                'status' => 'success',
+            ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Update Current Membership
+            |--------------------------------------------------------------------------
+            */
+            $userMember->update([
+                'expied_member' => $extendedUntil,
+                'interval_month' => $durationMonth,
+                'tot_payment' => $amount,
+                'is_status' => true,
+            ]);
+
+            return $extend->load('userMember');
+        });
+    }
+
 }
