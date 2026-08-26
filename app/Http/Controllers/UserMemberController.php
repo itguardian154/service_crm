@@ -584,7 +584,7 @@ class UserMemberController extends Controller
         }
     }
 
-     public function validateMember(Request $request)
+    public function validateMember(Request $request)
     {
         $request->validate([
             'member_id' => ['required', 'integer'],
@@ -593,6 +593,27 @@ class UserMemberController extends Controller
         ]);
 
         try {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Format Phone Number
+            |--------------------------------------------------------------------------
+            */
+
+            $phone = preg_replace('/[^0-9]/', '', $request->phone);
+
+            if (str_starts_with($phone, '0')) {
+                $phone = '62' . substr($phone, 1);
+            } elseif (str_starts_with($phone, '8')) {
+                $phone = '62' . $phone;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Get Member
+            |--------------------------------------------------------------------------
+            */
+
             $member = DB::table('users_member')
                 ->join(
                     'users_client',
@@ -602,7 +623,7 @@ class UserMemberController extends Controller
                 )
                 ->where('users_member.id_member', $request->member_id)
                 ->where('users_client.email', $request->email)
-                ->where('users_client.telephone', $request->phone)
+                ->where('users_client.telephone', $phone)
                 ->select(
                     'users_member.id_member',
                     'users_member.id_user_client',
@@ -629,6 +650,7 @@ class UserMemberController extends Controller
             ]);
 
         } catch (\Throwable $th) {
+
             return response()->json([
                 'status'  => 'failed',
                 'valid'   => false,
