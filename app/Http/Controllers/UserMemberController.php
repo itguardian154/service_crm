@@ -637,13 +637,26 @@ class UserMemberController extends Controller
         }
     }
 
-    public function extendMember(
-        Request $request
-    ): ExtendUserMember {
+    public function extendMember(Request $request): ExtendUserMember
+    {
+        $request->validate([
+            'member_id' => [
+                'required',
+                'string',
+            ],
+            'duration_month' => [
+                'required',
+                'integer',
+                'in:6,12',
+            ],
+            'amount' => [
+                'required',
+                'integer',
+                'min:0',
+            ],
+        ]);
 
-        return DB::transaction(function () use (
-            $request
-        ) {
+        return DB::transaction(function () use ($request) {
 
             /*
             |--------------------------------------------------------------------------
@@ -679,8 +692,7 @@ class UserMemberController extends Controller
 
             /*
             |--------------------------------------------------------------------------
-            | Jika membership masih aktif
-            | extend dimulai dari tanggal expired existing
+            | Determine Extension Start Date
             |--------------------------------------------------------------------------
             */
 
@@ -714,7 +726,7 @@ class UserMemberController extends Controller
             */
 
             $userMember->update([
-                'expied_member' => $extendedUntil,
+                'expied_member'  => $extendedUntil,
                 'interval_month' => $durationMonth,
                 'tot_payment'    => $amount,
                 'is_status'      => true,
