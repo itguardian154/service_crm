@@ -638,15 +638,39 @@ class UserMemberController extends Controller
     }
 
     public function extendMember(
-        UserMember $userMember,
-        int $durationMonth,
-        int $amount
+        Request $request
     ): ExtendUserMember {
+
         return DB::transaction(function () use (
-            $userMember,
-            $durationMonth,
-            $amount
+            $request
         ) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Get User Member
+            |--------------------------------------------------------------------------
+            */
+
+            $userMember = UserMember::where(
+                'id_member',
+                $request->member_id
+            )->firstOrFail();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Get Data From Request
+            |--------------------------------------------------------------------------
+            */
+
+            $durationMonth = (int) $request->duration_month;
+            $amount = (int) $request->amount;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Calculate Expired Date
+            |--------------------------------------------------------------------------
+            */
+
             $currentExpiredDate = Carbon::parse(
                 $userMember->expied_member
             );
@@ -659,6 +683,7 @@ class UserMemberController extends Controller
             | extend dimulai dari tanggal expired existing
             |--------------------------------------------------------------------------
             */
+
             $extendedFrom = $currentExpiredDate->greaterThanOrEqualTo($today)
                 ? $currentExpiredDate
                 : $today;
@@ -672,13 +697,14 @@ class UserMemberController extends Controller
             | Create Extend History
             |--------------------------------------------------------------------------
             */
+
             $extend = ExtendUserMember::create([
                 'user_member_id' => $userMember->id,
                 'duration_month' => $durationMonth,
-                'amount' => $amount,
-                'extended_from' => $extendedFrom,
+                'amount'         => $amount,
+                'extended_from'  => $extendedFrom,
                 'extended_until' => $extendedUntil,
-                'status' => 'success',
+                'status'         => 'success',
             ]);
 
             /*
@@ -686,15 +712,15 @@ class UserMemberController extends Controller
             | Update Current Membership
             |--------------------------------------------------------------------------
             */
+
             $userMember->update([
                 'expied_member' => $extendedUntil,
                 'interval_month' => $durationMonth,
-                'tot_payment' => $amount,
-                'is_status' => true,
+                'tot_payment'    => $amount,
+                'is_status'      => true,
             ]);
 
             return $extend->load('userMember');
         });
     }
-
 }
