@@ -608,7 +608,8 @@ class UserMemberController extends Controller
                     'users_member.id_user_client',
                     'users_client.name',
                     'users_client.email',
-                    'users_client.telephone'
+                    'users_client.telephone',
+                    'users_client.date_of_birth',
                 )
                 ->first();
 
