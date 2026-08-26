@@ -587,7 +587,7 @@ class UserMemberController extends Controller
      public function validateMember(Request $request)
     {
         $request->validate([
-            'member_id' => ['required', 'integer'],
+            'member_id' => ['required', 'string'],
             'email'     => ['required', 'email'],
             'phone'     => ['required', 'string'],
         ]);
