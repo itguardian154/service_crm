@@ -593,13 +593,11 @@ class UserMemberController extends Controller
         ]);
 
         try {
-
             /*
             |--------------------------------------------------------------------------
             | Format Phone Number
             |--------------------------------------------------------------------------
             */
-
             $phone = preg_replace('/[^0-9]/', '', $request->phone);
 
             if (str_starts_with($phone, '0')) {
@@ -613,7 +611,6 @@ class UserMemberController extends Controller
             | Get Member
             |--------------------------------------------------------------------------
             */
-
             $member = DB::table('users_member')
                 ->join(
                     'users_client',
@@ -627,6 +624,7 @@ class UserMemberController extends Controller
                 ->select(
                     'users_member.id_member',
                     'users_member.id_user_client',
+                    'users_member.date_expired',
                     'users_client.name',
                     'users_client.email',
                     'users_client.telephone',
@@ -642,15 +640,33 @@ class UserMemberController extends Controller
                 ], 404);
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | Validate Membership Expired Date
+            |--------------------------------------------------------------------------
+            */
+            $cutoffDate = '2026-09-30';
+
+            if (
+                $member->expied_member &&
+                Carbon::parse($member->expied_member)->greaterThan(
+                    Carbon::parse($cutoffDate)
+                )
+            ) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'valid'   => false,
+                    'message' => 'Member tidak dapat melakukan perpanjangan karena masa aktif membership masih berlaku setelah 30 September 2026.',
+                ], 422);
+            }
+
             return response()->json([
                 'status'  => 'success',
                 'valid'   => true,
                 'message' => 'Member valid.',
                 'data'    => $member,
             ]);
-
         } catch (\Throwable $th) {
-
             return response()->json([
                 'status'  => 'failed',
                 'valid'   => false,
