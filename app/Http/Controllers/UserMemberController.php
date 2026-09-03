@@ -379,32 +379,42 @@ class UserMemberController extends Controller
         $c_Server = new Server();
         $urlServer = $c_Server->serverLink();
 
-        $user_ = DB::table('users_member')
+        $userQuery = DB::table('users_member')
             ->select(
                 'users_member.image_eMember',
                 'users_client.name',
                 'users_client.telephone',
                 'users_member.expied_member',
-                DB::raw("CONCAT('" . $urlServer . "', users_member.image_eMember) as image_eMember"),
                 'users_member.interval_month'
             )
-            ->join('users_client', 'users_client.id_user_client', '=', 'users_member.id_user_client')
+            ->join(
+                'users_client',
+                'users_client.id_user_client',
+                '=',
+                'users_member.id_user_client'
+            )
             ->where('users_member.id_member', $idMember);
 
-        if (!$user_->exists()) {
+        if (!$userQuery->exists()) {
             return response()->json([
                 'status'  => 'failed',
-                'message' => 'ID Member : ' . $idMember . ' not exists'
+                'message' => 'ID Member : ' . $idMember . ' not exists',
             ]);
         }
 
-        $user = $user_->first();
+        $user = $userQuery->first();
+
+        // Tambahkan timestamp untuk mencegah image menggunakan cache lama
+        $user->image_eMember = $urlServer
+            . $user->image_eMember
+            . '?v=' . time();
 
         $requestCaption = [];
         $requestCaption['name'] = $user->name;
         $requestCaption['interval_month'] = $user->interval_month;
 
         $classCaptionWhatsapp = new ClassCaptionWhatsapp();
+
         $whatsappMessage = $classCaptionWhatsapp->captionMemberTypeB($requestCaption);
 
         $result = $this->whatsAppService->sendImage(
@@ -415,7 +425,10 @@ class UserMemberController extends Controller
             'Membership Notification'
         );
 
-        Log::info('WhatsApp notification result for Member ID ' . $idMember . ': ' . json_encode($result)); 
+        Log::info(
+            'WhatsApp notification result for Member ID ' . $idMember . ': '
+            . json_encode($result)
+        );
 
         return response()->json([
             'status'  => $result['success'] ? 'success' : 'failed',
