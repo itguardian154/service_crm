@@ -587,7 +587,7 @@ class UserMemberController extends Controller
     public function validateMember(Request $request)
     {
         $request->validate([
-            'member_id' => ['required', 'integer'],
+            'member_id' => ['required', 'string'],
             'email'     => ['required', 'email'],
             'phone'     => ['required', 'string'],
         ]);
@@ -624,7 +624,7 @@ class UserMemberController extends Controller
                 ->select(
                     'users_member.id_member',
                     'users_member.id_user_client',
-                    'users_member.date_expired',
+                    'users_member.expied_member',
                     'users_client.name',
                     'users_client.email',
                     'users_client.telephone',
@@ -672,6 +672,7 @@ class UserMemberController extends Controller
                 'status'  => 'failed',
                 'valid'   => false,
                 'message' => 'Gagal melakukan validasi member.',
+                'error' =>$th
             ], 500);
         }
     }
@@ -768,7 +769,7 @@ class UserMemberController extends Controller
                 'expied_member'  => $extendedUntil,
                 'interval_month' => $durationMonth,
                 'tot_payment'    => $amount,
-                'is_status'      => true,
+                'is_status'      => 1,
             ]);
 
             return $extend->load('userMember');
