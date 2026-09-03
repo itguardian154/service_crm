@@ -771,6 +771,16 @@ class UserMemberController extends Controller
                 'is_status'      => 1,
             ]);
 
+            UserClient::where('id_user_client',$userMember->id_user_client)->update([
+                'is_status'      => 1,
+            ]);
+
+            $c_uploadImage = new ClassUploadImage();
+            $urlPathImgProfile = $c_uploadImage->mergeImages($userMember->id_user_client,$userMember->type_member,$userMember->id_member,$extendedUntil);
+    
+            // whatsapp
+            $this->sentWhatsapp($userMember->id_member);
+
             return $extend->load('userMember');
         });
     }
