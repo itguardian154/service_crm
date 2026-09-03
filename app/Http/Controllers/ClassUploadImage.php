@@ -1291,32 +1291,109 @@ class ClassUploadImage extends Controller
             return $path;
         }
 
-        private function memberID($idUserClient,$typeMember,$idMember,$expiredDate)
+        private function memberID($idUserClient, $typeMember, $idMember, $expiredDate)
         {
-            // call template image
+            // =========================================================
+            // Template Member Card
+            // =========================================================
             $urlTemplate = $this->tempateCardMember($typeMember);
-            $image1 = Image::make(public_path($urlTemplate));
+            $templatePath = public_path($urlTemplate);
 
-            // get profile user
+            if (!is_file($templatePath) || !is_readable($templatePath)) {
+                throw new \Exception(
+                    "Template member card tidak dapat dibaca: {$templatePath}"
+                );
+            }
+
+            $image1 = Image::make($templatePath);
+
+
+            // =========================================================
+            // Get Profile User
+            // =========================================================
             $userProfile = DB::table('users_client')
-            ->select('id_user_client','name','date_of_birth','img_profile')
-            ->where('id_user_client',$idUserClient)
-            ->first();
+                ->select(
+                    'id_user_client',
+                    'name',
+                    'date_of_birth',
+                    'img_profile'
+                )
+                ->where('id_user_client', $idUserClient)
+                ->first();
+
+            if (!$userProfile) {
+                throw new \Exception(
+                    "User profile tidak ditemukan: {$idUserClient}"
+                );
+            }
+            
+
+
+            // =========================================================
+            // Profile Image
+            // =========================================================
             $urlImageProfile = $userProfile->img_profile;
 
-            // call image from local picture
-            $image2 = Image::make(public_path('storage/'.$urlImageProfile));
+            if (empty($urlImageProfile)) {
+                throw new \Exception(
+                    "Image profile kosong untuk user: {$idUserClient}"
+                );
+            }
 
-            // create qr code imgage
+            $profilePath = public_path(
+                'storage' . DIRECTORY_SEPARATOR . $urlImageProfile
+            );
+
+            if (!is_file($profilePath) || !is_readable($profilePath)) {
+                throw new \Exception(
+                    "Image profile tidak dapat dibaca: {$profilePath}"
+                );
+            }
+
+            $image2 = Image::make($profilePath);
+
+
+            // =========================================================
+            // Generate QR Code
+            // =========================================================
             $qrcodePath = public_path('qrcode.png');
-            QrCode::size(380)->format('png')->generate($idMember, $qrcodePath);
+
+            QrCode::size(380)
+                ->format('png')
+                ->generate($idMember, $qrcodePath);
+
+            if (!is_file($qrcodePath) || !is_readable($qrcodePath)) {
+                throw new \Exception(
+                    "QR Code gagal dibuat: {$qrcodePath}"
+                );
+            }
 
             $image3 = Image::make($qrcodePath);
 
-            $image2->fit(840, 1090);
-            $image1->insert($image2, 'top-left', 130, 430);
-            $image1->insert($image3, 'bottom-left', 1135, 490);
 
+            // =========================================================
+            // Resize & Insert Image
+            // =========================================================
+            $image2->fit(840, 1090);
+
+            $image1->insert(
+                $image2,
+                'top-left',
+                130,
+                430
+            );
+
+            $image1->insert(
+                $image3,
+                'bottom-left',
+                1135,
+                490
+            );
+
+
+            // =========================================================
+            // Data Member
+            // =========================================================
             $id_member = $idMember;
             $name = $userProfile->name;
             $birthday = $userProfile->date_of_birth;
@@ -1324,48 +1401,93 @@ class ClassUploadImage extends Controller
             $date = Carbon::parse($expiredDate);
             $expired_date = $date->format('j M Y');
 
-            // id Member
+
+            // =========================================================
+            // ID Member
+            // =========================================================
             $image1->text($id_member, 1090, 900, function ($font) {
-                $font->file(public_path('alright-sans-bold.ttf'));
+                $font->file(
+                    public_path('alright-sans-bold.ttf')
+                );
                 $font->size(125);
                 $font->color('#ffffff');
                 $font->align('left');
                 $font->valign('top');
             });
 
+
+            // =========================================================
+            // Name
+            // =========================================================
             $image1->text($name, 1090, 550, function ($font) {
-                $font->file(public_path('alright-sans-black.ttf'));
+                $font->file(
+                    public_path('alright-sans-black.ttf')
+                );
                 $font->size(125);
                 $font->color('#ffffff');
                 $font->align('left');
                 $font->valign('top');
             });
-            
-            $birthday = date('d-m-Y', strtotime($birthday));
+
+
+            // =========================================================
+            // Birthday
+            // =========================================================
+            $birthday = date(
+                'd-m-Y',
+                strtotime($birthday)
+            );
+
             $image1->text($birthday, 1360, 700, function ($font) {
-                $font->file(public_path('alright-sans-black.ttf'));
+                $font->file(
+                    public_path('alright-sans-black.ttf')
+                );
                 $font->size(100);
                 $font->color('#ffffff');
                 $font->align('center');
                 $font->valign('top');
             });
 
+
+            // =========================================================
+            // Expired Date
+            // =========================================================
             $image1->text($expired_date, 500, 1720, function ($font) {
-                $font->file(public_path('alright-sans-black.ttf'));
+                $font->file(
+                    public_path('alright-sans-black.ttf')
+                );
                 $font->size(125);
                 $font->color('#ffffff');
                 $font->align('center');
                 $font->valign('top');
             });
 
-            $fileName = $idUserClient.'-'.$idMember.'.jpg';; 
-            // Storage::disk('uploads_eMember')->put($fileName, $image1->encode('jpg'));
 
-            $image = Image::make($image1)->resize(800, null, function ($constraint) {
-                $constraint->aspectRatio();
-            });
-            $path = 'image_eMember' . '/' . $fileName;
-            $image->save(public_path('storage' . DIRECTORY_SEPARATOR . $path));
+            // =========================================================
+            // Save E-Membership
+            // =========================================================
+            $fileName = $idUserClient . '-' . $idMember . '.jpg';
+
+            $image = Image::make($image1)
+                ->resize(800, null, function ($constraint) {
+                    $constraint->aspectRatio();
+                });
+
+            $path = 'image_eMember/' . $fileName;
+
+            $savePath = public_path(
+                'storage' . DIRECTORY_SEPARATOR . $path
+            );
+
+            // Pastikan directory tersedia
+            $directory = dirname($savePath);
+
+            if (!is_dir($directory)) {
+                mkdir($directory, 0755, true);
+            }
+
+            $image->save($savePath);
+
             return $path;
         }
 

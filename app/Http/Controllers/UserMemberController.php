@@ -629,6 +629,7 @@ class UserMemberController extends Controller
                     'users_client.email',
                     'users_client.telephone',
                     'users_client.date_of_birth',
+                    'users_client.city',
                 )
                 ->first();
 
@@ -770,6 +771,16 @@ class UserMemberController extends Controller
                 'tot_payment'    => $amount,
                 'is_status'      => 1,
             ]);
+
+            UserClient::where('id_user_client',$userMember->id_user_client)->update([
+                'is_status'      => 1,
+            ]);
+
+            $c_uploadImage = new ClassUploadImage();
+            $urlPathImgProfile = $c_uploadImage->mergeImages($userMember->id_user_client,$userMember->type_member,$userMember->id_member,$extendedUntil);
+    
+            // whatsapp
+            $this->sentWhatsapp($userMember->id_member);
 
             return $extend->load('userMember');
         });
