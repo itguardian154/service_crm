@@ -114,8 +114,10 @@ class AttendanceRecord extends Controller
             $c_Server = new Server();
             $urlServer = $c_Server->serverLink();
 
-            // Ambil data member
-            $userMemberQuery = DB::table('users_member')
+            DB::beginTransaction();
+
+            // Lock member agar request redeem bersamaan harus antre
+            $userMember = DB::table('users_member')
                 ->select(
                     'users_client.id_user_client',
                     'users_client.name',
@@ -124,36 +126,52 @@ class AttendanceRecord extends Controller
                     'users_member.interval_month',
                     'users_member.start_member',
                     'users_member.expied_member',
-                    DB::raw("CONCAT('".$urlServer."',users_client.img_profile) as url_profile")
+                    DB::raw("CONCAT('" . $urlServer . "', users_client.img_profile) as url_profile")
                 )
-                ->join('member','member.id_member','=','users_member.type_member')
-                ->join('users_client','users_client.id_user_client','=','users_member.id_user_client')
-                ->where('users_member.id_member',$idMember);
+                ->join(
+                    'member',
+                    'member.id_member',
+                    '=',
+                    'users_member.type_member'
+                )
+                ->join(
+                    'users_client',
+                    'users_client.id_user_client',
+                    '=',
+                    'users_member.id_user_client'
+                )
+                ->where('users_member.id_member', $idMember)
+                ->lockForUpdate()
+                ->first();
 
-            if (!$userMemberQuery->exists()) {
+            if (!$userMember) {
+                DB::rollBack();
+
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Member tidak terdaftar'
                 ]);
             }
 
-            $userMember = $userMemberQuery->first();
-
             // Cek expired
             if ($userMember->expied_member < $dateNow) {
+                DB::rollBack();
+
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'ID Member sudah expired'
                 ]);
             }
 
-            // Cek sudah redeem hari ini
+            // Cek redeem hari ini
             $alreadyRedeemed = DB::table('attendace_record')
-                ->where('id_member',$userMember->id_member)
-                ->where('tanggal',$dateNow)
+                ->where('id_member', $userMember->id_member)
+                ->where('tanggal', $dateNow)
                 ->exists();
 
             if ($alreadyRedeemed) {
+                DB::rollBack();
+
                 return response()->json([
                     'status' => 'failed',
                     'message' => 'Data sudah diredeem hari ini'
@@ -162,17 +180,19 @@ class AttendanceRecord extends Controller
 
             // Generate ID attendance
             $c_generate = new Generate();
-            $idAttendaceRecord = $c_generate->idAttendaceRecord(); 
+            $idAttendaceRecord = $c_generate->idAttendaceRecord();
 
-            // Simpan ke database
+            // Insert
             AttendaceRecord::create([
                 'id_attendace'   => $idAttendaceRecord,
                 'id_user_client' => $userMember->id_user_client,
-                'id_member'      => $idMember,
+                'id_member'      => $userMember->id_member,
                 'tanggal'        => $dateNow,
                 'jam'            => $timeNow,
-                'reff'           => $reff
+                'reff'           => $reff,
             ]);
+
+            DB::commit();
 
             return response()->json([
                 'status'  => 'success',
@@ -180,14 +200,33 @@ class AttendanceRecord extends Controller
                 'profile' => $userMember
             ]);
 
-        } catch (\Exception $ex) {
+        } catch (\Illuminate\Database\QueryException $ex) {
+
+            DB::rollBack();
+
+            // Duplicate karena unique constraint
+            if ($ex->getCode() === '23000') {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Data sudah diredeem hari ini'
+                ], 409);
+            }
+
             return response()->json([
-                'status'  => 'error',
-                'message' => 'Terjadi kesalahan: '.$ex->getMessage()
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan: ' . $ex->getMessage()
+            ], 500);
+
+        } catch (\Exception $ex) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan: ' . $ex->getMessage()
             ], 500);
         }
     }
-
 
     private function getDateNow()
     {
